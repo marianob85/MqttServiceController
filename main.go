@@ -12,29 +12,6 @@ import (
 	"github.com/kardianos/service"
 )
 
-// https://pkg.go.dev/github.com/kardianos/service
-
-// func main() {
-// 	var configuration = readConfiguration("config.json")
-// 	client := NewMqttClient(configuration)
-// 	closed := make(chan struct{})
-// 	wait := &sync.WaitGroup{}
-
-// 	c := make(chan os.Signal)
-// 	signal.Notify(c, os.Interrupt)
-
-// 	go oscamServiceHandler(client, wait, closed)
-// 	go osServiceHandler(client, wait, closed)
-
-// 	select {
-// 	case sig := <-c:
-// 		fmt.Printf("Got %s signal. Aborting...\n", sig)
-// 		close(closed)
-// 	}
-// 	wait.Wait()
-// 	client.client.Disconnect(100)
-// }
-
 var logger service.Logger
 
 type program struct {
