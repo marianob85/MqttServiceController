@@ -5,59 +5,53 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"time"
+
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
-
-//topic := "/Mariano-Oscam/oscam/online"
-//topic := "/Mariano-Oscam/os/online"
-
-// https://guzalexander.com/2017/05/31/gracefully-exit-server-in-go.html
 
 func main() {
 	var configuration = readConfiguration("config.json")
 	client := NewMqttClient(configuration)
-
-	task := &Task{
-		closed: make(chan struct{}),
-		client: client,
-	}
+	closed := make(chan struct{})
+	wait := &sync.WaitGroup{}
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt)
 
-	task.wg.Add(1)
-	go func() { defer task.wg.Done(); task.Run() }()
+	go oscamServiceHandler(client, wait, closed)
 
 	select {
 	case sig := <-c:
 		fmt.Printf("Got %s signal. Aborting...\n", sig)
-		task.Stop()
+		close(closed)
 	}
+	wait.Wait()
+	client.client.Disconnect(100)
 }
 
-type Task struct {
-	closed chan struct{}
-	wg     sync.WaitGroup
-	client MqttClient
-}
+func oscamServiceHandler(client MqttClient, wait *sync.WaitGroup, closed chan struct{}) {
+	wait.Add(1)
+	defer wait.Done()
 
-func (t *Task) Run() {
+	oscamService := Service{"oscam"}
+	client.subscribe("oscam/command", func(client mqtt.Client, message mqtt.Message) { oscamService.setStatePayload(message.Payload()) })
+
+	var status, _, statusText = oscamService.checkStatus()
+	client.publish("oscam", statusText, true)
+
 	for {
+		time.Sleep(1 * time.Second)
+
 		select {
-		case <-t.closed:
+		case <-closed:
 			return
+		default:
+			var newStatus, _, newStatusText = oscamService.checkStatus()
+			if newStatus != status {
+				status = newStatus
+				client.publish("oscam", newStatusText, true)
+			}
 		}
 	}
 }
-
-func (t *Task) Stop() {
-	t.client.client.Disconnect(100)
-	close(t.closed)
-	t.wg.Wait()
-}
-
-// func sub(client MqttClient) {
-// 	topic := "/Mariano-Oscam/oscam/online"
-// 	token := client.client.Subscribe(topic, 1, nil)
-// 	token.Wait()
-// 	fmt.Printf("Subscribed to topic: %s", topic)
-// }

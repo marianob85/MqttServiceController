@@ -9,6 +9,7 @@ import (
 
 type MqttClient struct {
 	client mqtt.Client
+	topic  string
 }
 
 func NewMqttClient(config Config) MqttClient {
@@ -19,13 +20,13 @@ func NewMqttClient(config Config) MqttClient {
 	opts.SetClientID(config.ClientID)
 	opts.SetUsername(config.UserName)
 	opts.SetPassword(config.Password)
-	opts.SetDefaultPublishHandler(mqttClient.messagePubHandler)
 	opts.OnConnect = mqttClient.connectHandler
 	opts.OnConnectionLost = mqttClient.connectLostHandler
 	opts.OnReconnecting = mqttClient.reconnectingHandler
 	opts.ConnectRetry = true
 	opts.ConnectRetryInterval = 1 * time.Second
 	mqttClient.client = mqtt.NewClient(opts)
+	mqttClient.topic = config.Topic
 	if token := mqttClient.client.Connect(); token.Wait() && token.Error() != nil {
 		panic(token.Error())
 	}
@@ -33,8 +34,14 @@ func NewMqttClient(config Config) MqttClient {
 	return mqttClient
 }
 
-func (o *MqttClient) messagePubHandler(client mqtt.Client, msg mqtt.Message) {
-	fmt.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
+func (o *MqttClient) subscribe(topic string, callback mqtt.MessageHandler) {
+	token := o.client.Subscribe(fmt.Sprintf("%s/%s", o.topic, topic), 0, callback)
+	token.Wait()
+}
+
+func (o *MqttClient) publish(topic string, message string, retained bool) {
+	token := o.client.Publish(fmt.Sprintf("%s/%s", o.topic, topic), 0, retained, message)
+	token.Wait()
 }
 
 func (o *MqttClient) reconnectingHandler(client mqtt.Client, options *mqtt.ClientOptions) {

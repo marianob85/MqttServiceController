@@ -13,6 +13,7 @@ type Config struct {
 	UserName string `json:"UserName"`
 	Password string `json:"Password"`
 	ClientID string `json:"ClientID"`
+	Topic    string `json:"Topic"`
 }
 
 func readConfiguration(filePath string) Config {
