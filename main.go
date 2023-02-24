@@ -22,7 +22,7 @@ type program struct {
 
 func main() {
 	svcConfig := &service.Config{
-		Name:        "MqttServiceControl",
+		Name:        "mqtt-service-control",
 		DisplayName: "Mqtt Service Control",
 		Description: "Mqtt client for system services control",
 	}
@@ -48,7 +48,7 @@ func (p *program) Start(s service.Service) error {
 	return nil
 }
 func (p *program) run() {
-	var configuration = readConfiguration("MqttServiceControl.json")
+	var configuration = readConfiguration("mqtt-service-control.json")
 	p.client = NewMqttClient(configuration)
 	p.closed = make(chan struct{})
 

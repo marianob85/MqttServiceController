@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+
+if [ -d /run/systemd/system ]; then
+    deb-systemd-invoke stop mqtt-service-control.service >/dev/null
+	deb-systemd-invoke disable mqtt-service-control.service >/dev/null
+fi
+

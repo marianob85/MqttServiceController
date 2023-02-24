@@ -1,4 +1,4 @@
-module MqttServiceControl
+module mqtt-service-control
 
 go 1.20
 

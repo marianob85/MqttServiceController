@@ -19,7 +19,7 @@ type Config struct {
 }
 
 func readConfiguration(filePath string) Config {
-	jsonFile, err := os.Open(path.Join("/etc", filePath))
+	jsonFile, err := os.Open(path.Join("/etc/mqtt-service-control", filePath))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
