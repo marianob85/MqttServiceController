@@ -63,7 +63,7 @@ func (p *program) run() {
 		fmt.Printf("Got %s signal. Aborting...\n", sig)
 		close(p.closed)
 	case <-p.closed:
-		fmt.Printf("Got closed signal. Aborting...\n", sig)
+		fmt.Printf("Got closed signal. Aborting...\n")
 	}
 	p.wg.Wait()
 	p.client.client.Disconnect(100)
