@@ -6,5 +6,5 @@
     "Password" : "pass",
     "ClientID" : "Test",
     "Topic" : "Topic",
-    "Services" : ["oscam"]
+    "Services" : ["TestService"]
 }
