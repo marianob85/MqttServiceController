@@ -22,9 +22,9 @@ type program struct {
 
 func main() {
 	svcConfig := &service.Config{
-		Name:        "OscamControl",
-		DisplayName: "OscamControl_service",
-		Description: "OscamControl service.",
+		Name:        "MqttServiceControl",
+		DisplayName: "Mqtt Service Control",
+		Description: "Mqtt client for system services control",
 	}
 
 	prg := &program{}
@@ -48,14 +48,18 @@ func (p *program) Start(s service.Service) error {
 	return nil
 }
 func (p *program) run() {
-	var configuration = readConfiguration("config.json")
+	var configuration = readConfiguration("MqttServiceControl.json")
 	p.client = NewMqttClient(configuration)
 	p.closed = make(chan struct{})
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt)
 
-	go p.oscamServiceHandler()
+	for _, service := range configuration.Services {
+		go p.serviceHandler(service)
+		fmt.Printf("Service registered: %s\n", service)
+	}
+
 	go p.osServiceHandler()
 
 	select {
@@ -96,15 +100,15 @@ func (p *program) osServiceHandler() {
 	}
 }
 
-func (p *program) oscamServiceHandler() {
+func (p *program) serviceHandler(service string) {
 	p.wg.Add(1)
 	defer p.wg.Done()
 
-	oscamService := Service{"oscam"}
-	p.client.subscribe("oscam/command", func(client mqtt.Client, message mqtt.Message) { oscamService.setStatePayload(message.Payload()) })
+	oscamService := Service{service}
+	p.client.subscribe(service+"/command", func(client mqtt.Client, message mqtt.Message) { oscamService.setStatePayload(message.Payload()) })
 
 	var status, _, statusText = oscamService.checkStatus()
-	p.client.publish("oscam", statusText, true)
+	p.client.publish(service, statusText, true)
 
 	for {
 		time.Sleep(1 * time.Second)
@@ -116,7 +120,7 @@ func (p *program) oscamServiceHandler() {
 			var newStatus, _, newStatusText = oscamService.checkStatus()
 			if newStatus != status {
 				status = newStatus
-				p.client.publish("oscam", newStatusText, true)
+				p.client.publish(service, newStatusText, true)
 			}
 		}
 	}

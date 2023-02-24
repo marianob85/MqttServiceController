@@ -9,12 +9,13 @@ import (
 )
 
 type Config struct {
-	Server   string `json:"Server"`
-	Port     int    `json:"Port"`
-	UserName string `json:"UserName"`
-	Password string `json:"Password"`
-	ClientID string `json:"ClientID"`
-	Topic    string `json:"Topic"`
+	Server   string   `json:"Server"`
+	Port     int      `json:"Port"`
+	UserName string   `json:"UserName"`
+	Password string   `json:"Password"`
+	ClientID string   `json:"ClientID"`
+	Topic    string   `json:"Topic"`
+	Services []string `json:"Services"`
 }
 
 func readConfiguration(filePath string) Config {
