@@ -1,4 +1,4 @@
-module mqtt/oscam
+module mqtt/oscam_control
 
 go 1.20
 

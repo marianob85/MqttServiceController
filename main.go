@@ -67,10 +67,12 @@ func main() {
 
 func (p *program) Start(s service.Service) error {
 	// Start should not block. Do the actual work async.
+	fmt.Println("Start")
 	go p.run()
 	return nil
 }
 func (p *program) run() {
+	fmt.Println("Run")
 	var configuration = readConfiguration("config.json")
 	p.client = NewMqttClient(configuration)
 	p.closed = make(chan struct{})
@@ -86,6 +88,7 @@ func (p *program) run() {
 		fmt.Printf("Got %s signal. Aborting...\n", sig)
 		close(p.closed)
 	case <-p.closed:
+		fmt.Printf("Got closed signal. Aborting...\n", sig)
 	}
 	p.wg.Wait()
 	p.client.client.Disconnect(100)
@@ -93,6 +96,9 @@ func (p *program) run() {
 
 func (p *program) Stop(s service.Service) error {
 	// Stop should not block. Return with a few seconds.
+	fmt.Println("Stop")
+	close(p.closed)
+	p.wg.Wait()
 	return nil
 }
 
