@@ -41,7 +41,7 @@ pipeline
 				unstash 'dist'
 				sh '''
 					export GOPATH=${PWD}
-					go get github.com/github-release/github-release
+					go install github.com/github-release/github-release@v0.10.0
 					bin/github-release release --user marianob85 --repo ${GITHUB_REPO} --tag ${TAG_NAME} --name ${TAG_NAME}
 					for filename in build/dist/*; do
 						[ -e "$filename" ] || continue
