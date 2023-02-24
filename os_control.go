@@ -7,7 +7,7 @@ import (
 
 func osControl(payload []byte) {
 	if strings.TrimSpace(strings.ToLower(string(payload))) == "restart" {
-		cmd := exec.Command("restart", "0")
+		cmd := exec.Command("reboot", "0")
 		cmd.CombinedOutput()
 	}
 }
