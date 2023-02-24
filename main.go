@@ -2,48 +2,113 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"sync"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/kardianos/service"
 )
 
+// https://pkg.go.dev/github.com/kardianos/service
+
+// func main() {
+// 	var configuration = readConfiguration("config.json")
+// 	client := NewMqttClient(configuration)
+// 	closed := make(chan struct{})
+// 	wait := &sync.WaitGroup{}
+
+// 	c := make(chan os.Signal)
+// 	signal.Notify(c, os.Interrupt)
+
+// 	go oscamServiceHandler(client, wait, closed)
+// 	go osServiceHandler(client, wait, closed)
+
+// 	select {
+// 	case sig := <-c:
+// 		fmt.Printf("Got %s signal. Aborting...\n", sig)
+// 		close(closed)
+// 	}
+// 	wait.Wait()
+// 	client.client.Disconnect(100)
+// }
+
+var logger service.Logger
+
+type program struct {
+	closed chan struct{}
+	client MqttClient
+	wg     sync.WaitGroup
+}
+
 func main() {
+	svcConfig := &service.Config{
+		Name:        "OscamControl",
+		DisplayName: "OscamControl_service",
+		Description: "OscamControl service.",
+	}
+
+	prg := &program{}
+	s, err := service.New(prg, svcConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger, err = s.Logger(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = s.Run()
+	if err != nil {
+		logger.Error(err)
+	}
+}
+
+func (p *program) Start(s service.Service) error {
+	// Start should not block. Do the actual work async.
+	go p.run()
+	return nil
+}
+func (p *program) run() {
 	var configuration = readConfiguration("config.json")
-	client := NewMqttClient(configuration)
-	closed := make(chan struct{})
-	wait := &sync.WaitGroup{}
+	p.client = NewMqttClient(configuration)
+	p.closed = make(chan struct{})
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt)
 
-	go oscamServiceHandler(client, wait, closed)
-	go osServiceHandler(client, wait, closed)
+	go p.oscamServiceHandler()
+	go p.osServiceHandler()
 
 	select {
 	case sig := <-c:
 		fmt.Printf("Got %s signal. Aborting...\n", sig)
-		close(closed)
+		close(p.closed)
+	case <-p.closed:
 	}
-	wait.Wait()
-	client.client.Disconnect(100)
+	p.wg.Wait()
+	p.client.client.Disconnect(100)
 }
 
-func osServiceHandler(client MqttClient, wait *sync.WaitGroup, closed chan struct{}) {
-	wait.Add(1)
-	defer wait.Done()
+func (p *program) Stop(s service.Service) error {
+	// Stop should not block. Return with a few seconds.
+	return nil
+}
 
-	client.publish("os", "active", true)
-	client.subscribe("os/command", func(client mqtt.Client, message mqtt.Message) { osControl(message.Payload()) })
+func (p *program) osServiceHandler() {
+	p.wg.Add(1)
+	defer p.wg.Done()
+
+	p.client.publish("os", "active", true)
+	p.client.subscribe("os/command", func(client mqtt.Client, message mqtt.Message) { osControl(message.Payload()) })
 
 	for {
 		time.Sleep(1 * time.Second)
 
 		select {
-		case <-closed:
-			client.publish("os", "inactive", true)
+		case <-p.closed:
+			p.client.publish("os", "inactive", true)
 			return
 		default:
 
@@ -51,27 +116,27 @@ func osServiceHandler(client MqttClient, wait *sync.WaitGroup, closed chan struc
 	}
 }
 
-func oscamServiceHandler(client MqttClient, wait *sync.WaitGroup, closed chan struct{}) {
-	wait.Add(1)
-	defer wait.Done()
+func (p *program) oscamServiceHandler() {
+	p.wg.Add(1)
+	defer p.wg.Done()
 
 	oscamService := Service{"oscam"}
-	client.subscribe("oscam/command", func(client mqtt.Client, message mqtt.Message) { oscamService.setStatePayload(message.Payload()) })
+	p.client.subscribe("oscam/command", func(client mqtt.Client, message mqtt.Message) { oscamService.setStatePayload(message.Payload()) })
 
 	var status, _, statusText = oscamService.checkStatus()
-	client.publish("oscam", statusText, true)
+	p.client.publish("oscam", statusText, true)
 
 	for {
 		time.Sleep(1 * time.Second)
 
 		select {
-		case <-closed:
+		case <-p.closed:
 			return
 		default:
 			var newStatus, _, newStatusText = oscamService.checkStatus()
 			if newStatus != status {
 				status = newStatus
-				client.publish("oscam", newStatusText, true)
+				p.client.publish("oscam", newStatusText, true)
 			}
 		}
 	}
