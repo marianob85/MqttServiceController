@@ -43,6 +43,7 @@ pipeline
 					export GOPATH=${PWD}
 					go install github.com/github-release/github-release@latest
 					bin/github-release release --user marianob85 --repo ${GITHUB_REPO} --tag ${TAG_NAME} --name ${TAG_NAME}
+					sleep 2m
 					for filename in build/dist/*; do
 						[ -e "$filename" ] || continue
 						basefilename=$(basename "$filename")
