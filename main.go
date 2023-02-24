@@ -44,12 +44,10 @@ func main() {
 
 func (p *program) Start(s service.Service) error {
 	// Start should not block. Do the actual work async.
-	fmt.Println("Start")
 	go p.run()
 	return nil
 }
 func (p *program) run() {
-	fmt.Println("Run")
 	var configuration = readConfiguration("config.json")
 	p.client = NewMqttClient(configuration)
 	p.closed = make(chan struct{})
@@ -73,7 +71,6 @@ func (p *program) run() {
 
 func (p *program) Stop(s service.Service) error {
 	// Stop should not block. Return with a few seconds.
-	fmt.Println("Stop")
 	close(p.closed)
 	p.wg.Wait()
 	return nil
