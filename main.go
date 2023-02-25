@@ -65,7 +65,7 @@ func (p *program) run() {
 	select {
 	case sig := <-c:
 		fmt.Printf("Got %s signal. Aborting...\n", sig)
-		close(p.closed)
+		//close(p.closed)
 	case <-p.closed:
 		fmt.Printf("Got closed signal. Aborting...\n")
 	}
@@ -85,7 +85,8 @@ func (p *program) osServiceHandler() {
 	defer p.wg.Done()
 
 	p.client.publish("os", "active", true)
-	p.client.subscribe("os/command", func(client mqtt.Client, message mqtt.Message) { osControl(message.Payload()) })
+	p.client.subscribe("os/command", func(client mqtt.Client, message mqtt.Message) { osControlPayload(message.Payload()) })
+	p.client.subscribe("os/command/+", func(client mqtt.Client, message mqtt.Message) { osControlMessage(message.Topic()) })
 
 	for {
 		time.Sleep(1 * time.Second)
@@ -100,15 +101,21 @@ func (p *program) osServiceHandler() {
 	}
 }
 
+func (p *program) serviceHandlerPublish(service string, status string, statusState string) {
+	p.client.publish(service, status, true)
+	p.client.publish(service+"/status", statusState, true)
+}
+
 func (p *program) serviceHandler(service string) {
 	p.wg.Add(1)
 	defer p.wg.Done()
 
 	oscamService := Service{service}
 	p.client.subscribe(service+"/command", func(client mqtt.Client, message mqtt.Message) { oscamService.setStatePayload(message.Payload()) })
+	p.client.subscribe(service+"/command/+", func(client mqtt.Client, message mqtt.Message) { oscamService.setStateMessage(message.Topic()) })
 
-	var status, _, statusText = oscamService.checkStatus()
-	p.client.publish(service, statusText, true)
+	var status, _, statusText, statusState = oscamService.checkStatus()
+	p.serviceHandlerPublish(service, statusText, statusState)
 
 	for {
 		time.Sleep(1 * time.Second)
@@ -117,10 +124,10 @@ func (p *program) serviceHandler(service string) {
 		case <-p.closed:
 			return
 		default:
-			var newStatus, _, newStatusText = oscamService.checkStatus()
+			var newStatus, _, newStatusText, newStatusState = oscamService.checkStatus()
 			if newStatus != status {
 				status = newStatus
-				p.client.publish(service, newStatusText, true)
+				p.serviceHandlerPublish(service, newStatusText, newStatusState)
 			}
 		}
 	}
