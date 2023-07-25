@@ -11,6 +11,7 @@ pipeline
 	}
 	environment {
 		GITHUB_TOKEN = credentials('marianob85-github-jenkins')
+		NEXUS_CREDS = credentials('Nexus-Mariano-HTPC')
 	}
 	
 	stages
